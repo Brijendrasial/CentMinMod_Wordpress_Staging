@@ -90,7 +90,7 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
           echo "Creating Virtual Host"
           echo ""
           cat nginx_vhost.inc > /usr/local/nginx/conf/conf.d/$STAGINGDOMAIN.ssl.conf
-          sed -i "s/demo.com/$3/g" /usr/local/nginx/conf/conf.d/$STAGINGDOMAIN.ssl.conf
+          sed -i "s/demo.com/$STAGINGDOMAIN/g" /usr/local/nginx/conf/conf.d/$STAGINGDOMAIN.ssl.conf
           echo ""
           echo "Removing Old Certificate"
           echo ""
