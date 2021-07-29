@@ -5,4 +5,4 @@ sh staging-wordpress-cmm.sh --staging production_domain staging_domain staging_m
 example Production to Staging <br />
 sh staging-wordpress-cmm.sh --staging bullten.buzz dev.bullten.buzz sial_db72 sial_user72 sial@123<br /><br />
 example Staging to Production <br />
-sh staging-wordpress-cmm.sh --production production_domain staging_domain dev.bullten.buzz
+sh staging-wordpress-cmm.sh --production production_domain staging_domain
