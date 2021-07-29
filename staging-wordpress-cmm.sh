@@ -81,7 +81,7 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
           wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db export ~/production-db.sql
           wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db import ~/production-db.sql
           PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
-          wp --allow-root search-replace --path=$DOMAIN_PATH/$STAGINGDOMAIN/public $PRODUCTIONURL https://$STAGINGDOMAIN
+          wp --allow-root search-replace --path=$DOMAIN_PATH/$STAGINGDOMAIN/public $PRODUCTIONURL https://$STAGINGDOMAIN --skip-columns=guid
           chown -R nginx:nginx $DOMAIN_PATH/$STAGINGDOMAIN/public
           echo ""
           echo "Generating SSL for staging domain"
@@ -116,6 +116,13 @@ fi
 echo ""
 echo "production"
 echo ""
+rsync -rlptDu --exclude='wp-config.php' $DOMAIN_PATH/$STAGINGDOMAIN/public/* $DOMAIN_PATH/$MAINDOMAIN/public
+PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
+wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db export ~/staging-db.sql
+wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db import ~/staging-db.sql
+wp --allow-root search-replace --path=$DOMAIN_PATH/$MAINDOMAIN/public https://$STAGINGDOMAIN $PRODUCTIONURL --skip-columns=guid
+echo ""
+echo "Staging to Production is Done"
 ;;
 
 esac
