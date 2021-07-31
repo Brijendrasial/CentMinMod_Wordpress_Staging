@@ -29,13 +29,14 @@ echo " "
 
 MAINDOMAIN="$2"
 STAGINGDOMAIN="$3"
-DATABASENAME="$4"
-DATABASEUSER="$5"
-DATABASEPASS="$6"
+DATABASENAME="wpdb_$(openssl rand -hex 4)"
+DATABASEUSER="wpuser_$(openssl rand -hex 4)"
+DATABASEPASS="wppass_$(openssl rand -hex 8)"
 DOMAIN_PATH=/home/nginx/domains
 MYSQL_ROOT=$(cat /root/.my.cnf | grep password | cut -d' ' -f1 | cut -d'=' -f2)
 RANDOMUSER=$(openssl rand -hex 4)
 RANDOMPASS=$(openssl rand -hex 8)
+SAVEDPATH=/root/staging-production
 
 case $1 in
 --staging )
@@ -73,7 +74,7 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
         else
           echo "Database does not exist Creating new".
           mysql -uroot -p$MYSQL_ROOT -e "CREATE DATABASE $DATABASENAME;"
-          mysql -uroot -p$MYSQL_ROOT -e "CREATE USER $5@localhost IDENTIFIED BY '$DATABASEPASS';"
+          mysql -uroot -p$MYSQL_ROOT -e "CREATE USER $DATABASEUSER@localhost IDENTIFIED BY '$DATABASEPASS';"
           mysql -uroot -p$MYSQL_ROOT -e "GRANT ALL PRIVILEGES ON $DATABASENAME.* TO '$DATABASEUSER'@'localhost';"
           mysql -uroot -p$MYSQL_ROOT -e "FLUSH PRIVILEGES;"
           rm -rf /home/nginx/domains/$3/public/wp-config.php
@@ -104,6 +105,9 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
           echo ""
           echo "Your ftp User is : $RANDOMUSER"
           echo "Your ftp Pass is : $RANDOMPASS"
+          mkdir -p $SAVEDPATH
+          echo -e "production=$MAINDOMAIN\nstaging=$STAGINGDOMAIN" > $SAVEDPATH/$MAINDOMAIN.conf
+
         fi
       fi
    fi
@@ -116,13 +120,23 @@ fi
 echo ""
 echo "production"
 echo ""
-rsync -rlptDu --exclude='wp-config.php' $DOMAIN_PATH/$STAGINGDOMAIN/public/* $DOMAIN_PATH/$MAINDOMAIN/public
-PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
-wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db export ~/staging-db.sql
-wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db import ~/staging-db.sql
-wp --allow-root search-replace --path=$DOMAIN_PATH/$MAINDOMAIN/public https://$STAGINGDOMAIN $PRODUCTIONURL --skip-columns=guid
-echo ""
-echo "Staging to Production is Done"
+PRODUCTION_SAVED=$(grep "production" $SAVEDPATH/$MAINDOMAIN.conf | cut -d'=' -f2)
+STAGING_SAVED=$(grep "staging" $SAVEDPATH/$MAINDOMAIN.conf | cut -d'=' -f2)
+if [ "$MAINDOMAIN" == "$PRODUCTION_SAVED" ] && [ "$STAGINGDOMAIN" == "$STAGING_SAVED" ]; then
+  echo ""
+  echo "Copying Staging to Production"
+  echo ""
+  rsync -rlptDu --exclude='wp-config.php' $DOMAIN_PATH/$STAGINGDOMAIN/public/* $DOMAIN_PATH/$MAINDOMAIN/public
+  PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
+  wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db export ~/staging-db.sql
+  wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db import ~/staging-db.sql
+  wp --allow-root search-replace --path=$DOMAIN_PATH/$MAINDOMAIN/public https://$STAGINGDOMAIN $PRODUCTIONURL --skip-columns=guid
+  echo ""
+  echo "Staging to Production is Done"
+else
+  echo ""
+  echo "Wrong Production or Staging Domain Entered"
+fi
 ;;
 
 esac
