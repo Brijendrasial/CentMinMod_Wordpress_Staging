@@ -37,6 +37,8 @@ MYSQL_ROOT=$(cat /root/.my.cnf | grep password | cut -d' ' -f1 | cut -d'=' -f2)
 RANDOMUSER=$(openssl rand -hex 4)
 RANDOMPASS=$(openssl rand -hex 8)
 SAVEDPATH=/root/staging-production
+NOW=$( date '+%F_%H:%M:%S' )
+mkdir -p $SAVEDPATH
 
 case $1 in
 --staging )
@@ -79,8 +81,10 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
           mysql -uroot -p$MYSQL_ROOT -e "FLUSH PRIVILEGES;"
           rm -rf /home/nginx/domains/$3/public/wp-config.php
           wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public config create --dbname=$DATABASENAME --dbuser=$DATABASEUSER --dbpass=$DATABASEPASS --dbprefix=$(wp --allow-root db prefix --path=/home/nginx/domains/$MAINDOMAIN/public)
-          wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db export ~/production-db.sql
-          wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db import ~/production-db.sql
+          PRODUCTIONDB=$(wp --allow-root --path=$DOMAIN_PATH/$MAINDOMAIN/public config get DB_NAME)
+          mkdir -p $SAVEDPATH/${MAINDOMAIN}_db
+          wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db export $SAVEDPATH/${MAINDOMAIN}_db/${PRODUCTIONDB}_${NOW}.sql
+          wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db import $SAVEDPATH/${MAINDOMAIN}_db/${PRODUCTIONDB}_${NOW}.sql
           PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
           wp --allow-root search-replace --path=$DOMAIN_PATH/$STAGINGDOMAIN/public $PRODUCTIONURL https://$STAGINGDOMAIN --skip-columns=guid
           chown -R nginx:nginx $DOMAIN_PATH/$STAGINGDOMAIN/public
@@ -105,7 +109,6 @@ if [ -d $DOMAIN_PATH/$MAINDOMAIN ]; then
           echo ""
           echo "Your ftp User is : $RANDOMUSER"
           echo "Your ftp Pass is : $RANDOMPASS"
-          mkdir -p $SAVEDPATH
           echo -e "production=$MAINDOMAIN\nstaging=$STAGINGDOMAIN" > $SAVEDPATH/$MAINDOMAIN.conf
 
         fi
@@ -128,8 +131,10 @@ if [ "$MAINDOMAIN" == "$PRODUCTION_SAVED" ] && [ "$STAGINGDOMAIN" == "$STAGING_S
   echo ""
   rsync -rlptDu --exclude='wp-config.php' $DOMAIN_PATH/$STAGINGDOMAIN/public/* $DOMAIN_PATH/$MAINDOMAIN/public
   PRODUCTIONURL=$(wp option --allow-root --path=/home/nginx/domains/$MAINDOMAIN/public get siteurl)
-  wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db export ~/staging-db.sql
-  wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db import ~/staging-db.sql
+  STAGINGDB=$(wp --allow-root --path=$DOMAIN_PATH/$STAGINGDOMAIN/public config get DB_NAME)
+  mkdir -p $SAVEDPATH/${STAGINGDOMAIN}_db
+  wp --allow-root  --path=$DOMAIN_PATH/$STAGINGDOMAIN/public db export $SAVEDPATH/${STAGINGDOMAIN}_db/${STAGINGDB}_${NOW}.sql
+  wp --allow-root  --path=$DOMAIN_PATH/$MAINDOMAIN/public db import $SAVEDPATH/${STAGINGDOMAIN}_db/${STAGINGDB}_${NOW}.sql
   wp --allow-root search-replace --path=$DOMAIN_PATH/$MAINDOMAIN/public https://$STAGINGDOMAIN $PRODUCTIONURL --skip-columns=guid
   echo ""
   echo "Staging to Production is Done"
